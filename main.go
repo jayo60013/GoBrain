@@ -32,7 +32,8 @@ type Program struct {
 
 type Lexer struct {
 	content []byte
-	pos     int
+	ip      int
+	count   int
 }
 
 func main() {
@@ -64,10 +65,13 @@ func getContents(filepath string) []byte {
 
 func convertToIR(program []byte) []Op {
 	var instr []Op
+	var addrStack []int
 	lexer := Lexer{
 		content: program,
-		pos:     0,
+		ip:      0,
+		count:   len(program),
 	}
+
 	ch := lexer.next()
 
 	for ch != 0 {
@@ -83,29 +87,41 @@ func convertToIR(program []byte) []Op {
 			ch = next
 
 		case OP_JUMP_IF_ZERO:
+			addrStack = append(addrStack, len(instr))
+			instr = append(instr, Op{ch, 0})
 			ch = lexer.next()
 		case OP_JUMP_IF_NONZERO:
+			if len(addrStack) == 0 {
+				fmt.Println("ERROR: Stack underflow")
+				os.Exit(1)
+			}
+
+			addr := addrStack[len(addrStack)-1]
+			addrStack = addrStack[:len(addrStack)-1]
+
+			instr = append(instr, Op{ch, addr + 1})
+			instr[addr].Operand = len(instr)
 			ch = lexer.next()
 		}
 	}
 
-	for _, op := range instr {
-		fmt.Printf("%c (%d)\n", op.OpCode, op.Operand)
+	for i, op := range instr {
+		fmt.Printf("%d: %c -> %d\n", i, op.OpCode, op.Operand)
 	}
 	return instr
 }
 
 func (l *Lexer) next() byte {
-	for l.pos < len(l.content) && !isToken(l.content[l.pos]) {
-		l.pos += 1
+	for l.ip < l.count && !isToken(l.content[l.ip]) {
+		l.ip += 1
 	}
 
-	if l.pos >= len(l.content) {
+	if l.ip >= l.count {
 		return 0
 	}
 
-	l.pos += 1
-	return l.content[l.pos-1]
+	l.ip += 1
+	return l.content[l.ip-1]
 }
 
 func isToken(symbol byte) bool {
