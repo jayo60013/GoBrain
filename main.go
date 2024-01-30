@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 )
 
 const (
-	OP_INC             = '>'
-	OP_DEC             = '<'
+	OP_LEFT            = '<'
+	OP_RIGHT           = '>'
 	OP_ADD             = '+'
 	OP_SUB             = '-'
 	OP_OUTPUT          = '.'
@@ -18,59 +17,102 @@ const (
 	OP_JUMP_IF_NONZERO = ']'
 )
 
-type IR struct {
-	OpCode byte
-	OpRand int
+const TOKENS = "<>+-.,[]"
+
+type Op struct {
+	OpCode  byte
+	Operand int
+}
+
+type Program struct {
+	instructions []Op
+	count        int
+	capacity     int
+}
+
+type Lexer struct {
+	content []byte
+	pos     int
 }
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Printf("ERROR: No input supplied\n")
-		log.Fatalf("Usage: gobrain <input.bf>\n")
+		fmt.Println("ERROR: No input supplied")
+		fmt.Println("Usage: gobrain <input.bf>")
+		os.Exit(1)
 	}
 
 	filepath := os.Args[1]
 	if strings.Split(filepath, ".")[1] != "bf" {
-		log.Fatalf("ERROR: Input must be brainfuck file in form input.bf")
+		fmt.Println("ERROR: Input must be brainfuck file in form input.bf")
+		os.Exit(1)
 	}
 
-	program := getContents(filepath)
-
-	fmt.Println(convertToIR(program))
+	contents := getContents(filepath)
+	convertToIR(contents)
 }
 
 func getContents(filepath string) []byte {
 	content, err := os.ReadFile(filepath)
 	if err != nil {
-		log.Fatalf("ERROR: Could not open %s\n", filepath)
+		fmt.Printf("ERROR: Could not open %s\n", filepath)
+		os.Exit(1)
 	}
 
 	return content
 }
 
-func convertToIR(program []byte) []IR {
-	ip := 0
-	var char byte
-	var instructions []IR
-
-	for ; ; ip++ {
-		char, ip = getNextToken(program, ip)
-		if ip == -1 {
-			break
-		}
-
-		instructions = append(instructions, IR{char, 1})
+func convertToIR(program []byte) []Op {
+	var instr []Op
+	lexer := Lexer{
+		content: program,
+		pos:     0,
 	}
-	return instructions
+	ch := lexer.next()
+
+	for ch != 0 {
+		switch ch {
+		case OP_ADD, OP_SUB, OP_LEFT, OP_RIGHT, OP_INPUT, OP_OUTPUT:
+			count := 1
+			next := lexer.next()
+			for next == ch {
+				count += 1
+				next = lexer.next()
+			}
+			instr = append(instr, Op{ch, count})
+			ch = next
+
+		case OP_JUMP_IF_ZERO:
+			ch = lexer.next()
+		case OP_JUMP_IF_NONZERO:
+			ch = lexer.next()
+		}
+	}
+
+	for _, op := range instr {
+		fmt.Printf("%c (%d)\n", op.OpCode, op.Operand)
+	}
+	return instr
 }
 
-func getNextToken(program []byte, ip int) (byte, int) {
-	for ; ip < len(program); ip++ {
-		switch program[ip] {
-		case '<', '>', '+', '-', '.', ',', '[', ']':
-			return program[ip], ip
-		}
+func (l *Lexer) next() byte {
+	for l.pos < len(l.content) && !isToken(l.content[l.pos]) {
+		l.pos += 1
 	}
 
-	return 0, -1
+	if l.pos >= len(l.content) {
+		return 0
+	}
+
+	l.pos += 1
+	return l.content[l.pos-1]
+}
+
+func isToken(symbol byte) bool {
+	for _, token := range []byte(TOKENS) {
+		if token == symbol {
+			return true
+		}
+	}
+	return false
 }
