@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	. "gobrain/lexer"
 )
 
 const (
@@ -17,8 +19,6 @@ const (
 	OP_JUMP_IF_NONZERO = ']'
 )
 
-const TOKENS = "<>+-.,[]"
-
 type Op struct {
 	OpCode  byte
 	Operand int
@@ -30,16 +30,16 @@ type Program struct {
 	capacity     int
 }
 
-type Lexer struct {
-	content []byte
-	ip      int
-	count   int
+type Memory struct {
+	data     []byte
+	count    int
+	capacity int
 }
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("ERROR: No input supplied")
-		fmt.Println("Usage: gobrain <input.bf>")
+		fmt.Printf("ERROR: No input supplied\n")
+		fmt.Printf("Usage: %s <input.bf>\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -50,7 +50,76 @@ func main() {
 	}
 
 	contents := getContents(filepath)
-	convertToIR(contents)
+	program := convertToIR(contents)
+
+	var memory Memory
+	memory.data = append(memory.data, 0)
+	memory.count++
+	head := 0
+	ip := 0
+
+	for ip < program.count {
+
+		instruction := program.instructions[ip]
+		switch instruction.OpCode {
+
+		case OP_ADD:
+			memory.data[head] += byte(instruction.Operand)
+			ip++
+
+		case OP_SUB:
+			memory.data[head] -= byte(instruction.Operand)
+			ip++
+
+		case OP_LEFT:
+			if head < instruction.Operand {
+				fmt.Printf("RUNTIME ERROR: Memory underflow\n")
+				os.Exit(1)
+			}
+			head -= instruction.Operand
+			ip++
+
+		case OP_RIGHT:
+			head += instruction.Operand
+			for head >= memory.count {
+				memory.data = append(memory.data, 0)
+				memory.count += 1
+			}
+			ip++
+
+		case OP_INPUT:
+			buffer := make([]byte, 1)
+			_, err := os.Stdin.Read(buffer)
+			if err != nil {
+				fmt.Printf("RUNTIME ERROR: Problem reading input\n")
+				os.Exit(1)
+			}
+
+			// Extract the first byte from the string
+			memory.data[head] = buffer[0]
+			ip++
+
+		case OP_OUTPUT:
+			for i := 0; i < instruction.Operand; i++ {
+				fmt.Printf("%c", memory.data[head])
+			}
+			ip++
+
+		case OP_JUMP_IF_ZERO:
+			if memory.data[head] == 0 {
+				ip = instruction.Operand
+			} else {
+				ip++
+			}
+
+		case OP_JUMP_IF_NONZERO:
+			if memory.data[head] != 0 {
+				ip = instruction.Operand
+			} else {
+				ip++
+			}
+		}
+	}
 }
 
 func getContents(filepath string) []byte {
@@ -63,25 +132,25 @@ func getContents(filepath string) []byte {
 	return content
 }
 
-func convertToIR(program []byte) []Op {
+func convertToIR(program []byte) Program {
 	var instr []Op
 	var addrStack []int
 	lexer := Lexer{
-		content: program,
-		ip:      0,
-		count:   len(program),
+		Content: program,
+		Ip:      0,
+		Count:   len(program),
 	}
 
-	ch := lexer.next()
+	ch := lexer.Next()
 
 	for ch != 0 {
 		switch ch {
 		case OP_ADD, OP_SUB, OP_LEFT, OP_RIGHT, OP_INPUT, OP_OUTPUT:
 			count := 1
-			next := lexer.next()
+			next := lexer.Next()
 			for next == ch {
 				count += 1
-				next = lexer.next()
+				next = lexer.Next()
 			}
 			instr = append(instr, Op{ch, count})
 			ch = next
@@ -89,7 +158,7 @@ func convertToIR(program []byte) []Op {
 		case OP_JUMP_IF_ZERO:
 			addrStack = append(addrStack, len(instr))
 			instr = append(instr, Op{ch, 0})
-			ch = lexer.next()
+			ch = lexer.Next()
 		case OP_JUMP_IF_NONZERO:
 			if len(addrStack) == 0 {
 				fmt.Println("ERROR: Stack underflow")
@@ -101,34 +170,9 @@ func convertToIR(program []byte) []Op {
 
 			instr = append(instr, Op{ch, addr + 1})
 			instr[addr].Operand = len(instr)
-			ch = lexer.next()
+			ch = lexer.Next()
 		}
 	}
 
-	for i, op := range instr {
-		fmt.Printf("%d: %c -> %d\n", i, op.OpCode, op.Operand)
-	}
-	return instr
-}
-
-func (l *Lexer) next() byte {
-	for l.ip < l.count && !isToken(l.content[l.ip]) {
-		l.ip += 1
-	}
-
-	if l.ip >= l.count {
-		return 0
-	}
-
-	l.ip += 1
-	return l.content[l.ip-1]
-}
-
-func isToken(symbol byte) bool {
-	for _, token := range []byte(TOKENS) {
-		if token == symbol {
-			return true
-		}
-	}
-	return false
+	return Program{instructions: instr, count: len(instr), capacity: 0}
 }
