@@ -7,7 +7,7 @@ gobrain is a Brainfuck interpreter written in Go. Brainfuck is an esoteric progr
 To install gobrain, you need to have Go installed on your system. Then, you can simply clone this repository:
 
 ```bash
-git clone https://github.com/your-username/gobrain.git
+git clone https://github.com/jayo60013/GoBrain.git
 ```
 Navigate to the cloned directory
 ```bash
@@ -15,7 +15,7 @@ cd gobrain
 ```
 Then build the executable using the `go build` command
 ```bash
-go build -o gobrain main.gobrain
+go build -o gobrain main.go
 ```
 
 After building the executable, you can run the gobrain interpreter by executing this command. The following example runs hello world.
