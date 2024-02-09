@@ -25,7 +25,7 @@ After building the executable, you can run the gobrain interpreter by executing 
 Replace `examples/hello.bf` to the path of your brainfuck program file.
 
 ### Examples
-In the `examples` directory you will find some example Brainfuck programs taken from the [Brainfuck Wiki](https://en.wikipedia.org/wiki/Brainfuck) you can use to test GoBrain.
+In the `examples` directory you will find some example Brainfuck programs taken from the [Brainfuck Wiki](https://en.wikipedia.org/wiki/Brainfuck) and [brainfuck.org](https://www.brainfuck.org) you can use to test GoBrain.
 
 ## License
 This project is licensed under the MIT License.
