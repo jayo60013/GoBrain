@@ -30,12 +30,6 @@ type Program struct {
 	capacity     int
 }
 
-type Memory struct {
-	data     []byte
-	count    int
-	capacity int
-}
-
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Printf("ERROR: No input supplied\n")
@@ -45,12 +39,25 @@ func main() {
 
 	filepath := os.Args[1]
 	if strings.Split(filepath, ".")[1] != "bf" {
-		fmt.Println("ERROR: Input must be brainfuck file in form input.bf")
+		fmt.Println("ERROR: Input must be brainfuck file")
 		os.Exit(1)
 	}
 
 	contents := getContents(filepath)
 	program := convertToIR(contents)
+
+	if runProgram(program) != 0 {
+		os.Exit(1)
+	}
+	fmt.Printf("\n")
+}
+
+func runProgram(program Program) byte {
+	type Memory struct {
+		data     []byte
+		count    int
+		capacity int
+	}
 
 	var memory Memory
 	memory.data = append(memory.data, 0)
@@ -74,7 +81,7 @@ func main() {
 		case OP_LEFT:
 			if head < instruction.Operand {
 				fmt.Printf("RUNTIME ERROR: Memory underflow\n")
-				os.Exit(1)
+				return 1
 			}
 			head -= instruction.Operand
 			ip++
@@ -92,7 +99,7 @@ func main() {
 			_, err := os.Stdin.Read(buffer)
 			if err != nil {
 				fmt.Printf("RUNTIME ERROR: Problem reading input\n")
-				os.Exit(1)
+				return 1
 			}
 
 			// Extract the first byte from the string
@@ -120,6 +127,7 @@ func main() {
 			}
 		}
 	}
+	return 0
 }
 
 func getContents(filepath string) []byte {
